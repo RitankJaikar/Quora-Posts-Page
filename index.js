@@ -1,15 +1,13 @@
 const express=require("express");
 const app=express();
-
-const { v4: uuidv4 } = require('uuid');     //used to create unique id
-//e.g. uuidv4(); // ⇨ '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed'
-
-var methodOverride = require('method-override');    //used to override POST request to PUT, PATCH, etc.
+const { v4: uuidv4 } = require('uuid');
+const methodOverride = require('method-override');
+const path=require("path");
+const mysql = require('mysql2');
 
 app.use(express.urlencoded({extended:true}));
-app.use(methodOverride('_method'));    //finds _method in query string and override accodingly
+app.use(methodOverride('_method'));
 
-const path=require("path");
 app.set("view engine","ejs");
 app.set("views",path.join(__dirname,"views"));
 app.use(express.static(path.join(__dirname,"public")));
@@ -19,66 +17,120 @@ app.listen(port,()=>{
     console.log("listening to port: 8080");
 });
 
-let posts=[     //store all data of every user, and new users also
-    {
-        id:uuidv4(),    //unique id for every user
-        username:"Raj",
-        content:"I love coding"
-    },
-    {
-        id:uuidv4(),
-        username:"Swati",
-        content:"Hardwork is key to success"
-    },
-    {
-        id:uuidv4(),
-        username:"Sushant",
-        content:"Inner happiness is true happiness"
-    },
-    {
-        id:uuidv4(),
-        username:"Richa",
-        content:"Today, I got my first internship"
-    }
-];
-
-app.get("/posts",(req,res)=>{   //main page
-    res.render("index.ejs",{posts});
+const connection = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    database: 'DB1',
+    password: 'Jaikar123'
 });
 
-app.get("/posts/new",(req,res)=>{   //create new post
+
+app.get("/posts",(req,res)=>{   //main page
+    let q="SELECT * FROM posts;";
+    try{
+        connection.query(q,
+            (err, posts)=> {
+                if(err)     throw err;
+                res.render("index.ejs",{posts});
+            }
+        );
+    }
+    catch(err){
+        console.log(err);
+        res.send("some error occurred");
+    }
+});
+
+app.get("/posts/new",(req,res)=>{   //create new post page
     res.render("new.ejs");
 });
 
-app.post("/posts",(req,res)=>{  //POST request, to create new post
-    let {username,content}=req.body;    //username and content of new post
-    let id=uuidv4();    //creating id for new post
-    posts.push({id,username,content});     //adds new post with username and content
-    res.redirect("/posts");     //redirects to /post route
+app.post("/posts",(req,res)=>{  //to create new post
+    let {username,content}=req.body;  
+    let id=uuidv4();
+    let newPost=[[id,username,content]];
+    let q="INSERT INTO posts VALUES ?;";
+    try{
+        connection.query(q, [newPost],
+            (err, result)=> {
+                if(err)     throw err;
+                res.redirect("/posts");
+            }
+        );
+    }
+    catch(err){
+        console.log(err);
+        res.send("some error occurred");
+    }
 });
 
 app.get("/posts/:id",(req,res)=>{   //to see post in detail
-    let {id}=req.params;            //page is redirected to the user's post on the bais of id
-    let post=posts.find((p)=> id===p.id);   //find post for exact id in posts array 
-    res.render("show.ejs", {post});
-});
-                                        //try with hoppscotch
-app.patch("/posts/:id",(req,res)=>{     //to update/edit content of specific post using patch  
-    let {id}=req.params;    //storing id
-    let newContent=req.body.content;    //storing new/updated content
-    let post=posts.find((p)=> id===p.id);   //finding post for exact id in posts array
-    post.content=newContent;    //updating content
-    res.redirect("/posts");
+    let {id}=req.params;
+    let q=`SELECT * FROM posts WHERE id='${id}';`;
+    try{
+        connection.query(q,
+            (err, result)=> {
+                if(err)     throw err;
+                let post=result[0]
+                res.render("show.ejs", {post});
+            }
+        );
+    }
+    catch(err){
+        console.log(err);
+        res.send("some error occurred");
+    }
 });
 
-app.get("/posts/:id/edit",(req,res)=>{  //to edit the post content
+app.get("/posts/:id/edit",(req,res)=>{  //edit post page
     let {id}=req.params;
-    let post=posts.find((p)=> id===p.id);
-    res.render("edit.ejs",{post});    //renders edit page to edit post content
+    let q=`SELECT * FROM posts WHERE id='${id}';`;
+    try{
+        connection.query(q,
+            (err, result)=> {
+                if(err)     throw err;
+                let post=result[0];
+                res.render("edit.ejs",{post});
+            }
+        );
+    }
+    catch(err){
+        console.log(err);
+        res.send("some error occurred");
+    }
+});
+
+app.patch("/posts/:id",(req,res)=>{     //to update/edit content of specific post 
+    let {id}=req.params;
+    let newContent=req.body.content;
+    let q=`UPDATE posts SET content='${newContent}' WHERE id='${id}';`;
+    try{
+        connection.query(q,
+            (err, result)=> {
+                if(err)     throw err;
+                res.redirect("/posts");
+            }
+        );
+    }
+    catch(err){
+        console.log(err);
+        res.send("some error occurred");
+    }
 });
 
 app.delete("/posts/:id",(req,res)=>{    //to delete a post
     let {id}=req.params;
-    posts=posts.filter((p)=> id!==p.id);    //post with :id is filtered out
-    res.redirect("/posts");
+    let q=`DELETE FROM posts WHERE id='${id}';`;
+    try{
+        connection.query(q,
+            (err, result)=> {
+                if(err)     throw err;
+                res.redirect("/posts");
+            }
+        );
+    }
+    catch(err){
+        console.log(err);
+        res.send("some error occurred");
+    }
 });

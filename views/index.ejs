@@ -8,6 +8,7 @@
 </head>
 <body>
     <h1 class="heading">Quora Posts</h1>
+    <a href="http://localhost:8080/posts/new">Create New Post</a>
     <%  for(post of posts){ %>
     <div class="post">
         <h2 class="user"> @<%= post.username %> </h2>
@@ -19,7 +20,5 @@
         </form>
     </div>
     <%  }   %>
-    <br><br>
-    <a href="http://localhost:8080/posts/new">Create Post</a>
 </body>
 </html>
